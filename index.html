@@ -1,959 +1,677 @@
-import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, ChefHat, Search, RefreshCw, ShoppingCart, ExternalLink, Info, User, X, Package, Plus, Minus } from 'lucide-react';
-
-const NutriPlan = () => {
-  const [currentView, setCurrentView] = useState('planner');
-  const [selectedMeal, setSelectedMeal] = useState(null);
-  const [weekPlan, setWeekPlan] = useState({});
-  const [dailyNutrition, setDailyNutrition] = useState({});
-  const [searchTerm, setSearchTerm] = useState('');
-  const [showProfileModal, setShowProfileModal] = useState(false);
-  const [showNutritionInfo, setShowNutritionInfo] = useState(null);
-  const [showInventoryModal, setShowInventoryModal] = useState(false);
-  const [inventory, setInventory] = useState([
-    { id: 1, name: "Tomaten", amount: 3, unit: "Stück", category: "Gemüse", expires: "2024-01-15" },
-    { id: 2, name: "Spinat", amount: 200, unit: "g", category: "Gemüse", expires: "2024-01-12" },
-    { id: 3, name: "Quinoa", amount: 150, unit: "g", category: "Getreide", expires: "2024-06-01" }
-  ]);
-  const [newInventoryItem, setNewInventoryItem] = useState({
-    name: "", amount: "", unit: "g", category: "Gemüse", expires: ""
-  });
-  const [userProfile, setUserProfile] = useState({
-    height: 165, weight: 65, age: 28, gender: 'female', isPregnant: true, pregnancyWeek: 19
-  });
-
-  const days = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
-  const mealTypes = ['Frühstück', 'Mittag', 'Abend', 'Snack'];
-
-  // Kompakte Rezeptdatenbank
-  const recipes = {
-    'Frühstück': [
-      {
-        id: 'f1', name: "Haferflocken-Porridge", image: "🥣", prepTime: 8,
-        calories: 485, protein: 15.2, carbs: 65.3, fat: 18.1, fiber: 12.8,
-        iron: 4.2, calcium: 245, folate: 128, vitaminC: 45, vitaminD: 0, zinc: 3.1,
-        magnesium: 98, potassium: 421, omega3: 2.8, vitaminB12: 0.8,
-        ingredients: ["Haferflocken", "Leinsamen", "Walnüsse", "Beeren", "Hafermilch"],
-        source: "Eat This", sourceUrl: "https://eat-this.org/veganes-porridge-rezept/"
-      },
-      {
-        id: 'f2', name: "Quinoa-Bowl", image: "🍓", prepTime: 15,
-        calories: 520, protein: 18.8, carbs: 58.5, fat: 16.4, fiber: 11.2,
-        iron: 5.8, calcium: 312, folate: 165, vitaminC: 52, vitaminD: 0, zinc: 3.2,
-        magnesium: 138, potassium: 428, omega3: 3.2, vitaminB12: 0.6,
-        ingredients: ["Quinoa", "Chiasamen", "Mandeln", "Himbeeren", "Sojamilch"],
-        source: "Vegane Vibes", sourceUrl: "https://veganevibes.de/quinoa-breakfast-bowl/"
-      },
-      {
-        id: 'f3', name: "Rührei mit Gemüse", image: "🍳", prepTime: 12,
-        calories: 420, protein: 22.6, carbs: 12.4, fat: 28.8, fiber: 4.2,
-        iron: 3.8, calcium: 186, folate: 118, vitaminC: 38, vitaminD: 2.1, zinc: 2.8,
-        magnesium: 78, potassium: 328, omega3: 1.2, vitaminB12: 2.8,
-        ingredients: ["Eier", "Spinat", "Tomaten", "Olivenöl", "Kräuter"],
-        source: "Eigene Hühner", sourceUrl: "#"
-      }
-    ],
-    'Mittag': [
-      {
-        id: 'm1', name: "Quinoa-Linsen Bowl", image: "🥗", prepTime: 25,
-        calories: 620, protein: 28.8, carbs: 75.6, fat: 22.4, fiber: 20.2,
-        iron: 10.2, calcium: 465, folate: 328, vitaminC: 55, vitaminD: 0, zinc: 5.2,
-        magnesium: 218, potassium: 758, omega3: 2.1, vitaminB12: 0.3,
-        ingredients: ["Linsen", "Quinoa", "Spinat", "Avocado", "Tahini"],
-        source: "Bianca Zapatka", sourceUrl: "https://biancazapatka.com/de/quinoa-bowl-tahinidressing/"
-      },
-      {
-        id: 'm2', name: "Kichererbsen-Curry", image: "🍛", prepTime: 30,
-        calories: 580, protein: 24.1, carbs: 78.3, fat: 18.6, fiber: 18.8,
-        iron: 8.5, calcium: 386, folate: 287, vitaminC: 42, vitaminD: 0, zinc: 4.2,
-        magnesium: 188, potassium: 628, omega3: 1.2, vitaminB12: 0.2,
-        ingredients: ["Kichererbsen", "Reis", "Grünkohl", "Kokosmilch", "Gewürze"],
-        source: "Kitchen Stories", sourceUrl: "https://www.kitchenstories.com/de/rezepte/kichererbsencurry"
-      },
-      {
-        id: 'm3', name: "Gemüse-Frittata", image: "🥚", prepTime: 28,
-        calories: 480, protein: 26.4, carbs: 22.6, fat: 32.2, fiber: 7.8,
-        iron: 5.2, calcium: 318, folate: 186, vitaminC: 58, vitaminD: 3.2, zinc: 3.8,
-        magnesium: 109, potassium: 516, omega3: 1.8, vitaminB12: 4.2,
-        ingredients: ["Eier", "Zucchini", "Paprika", "Spinat", "Käse"],
-        source: "Eigene Hühner", sourceUrl: "#"
-      }
-    ],
-    'Abend': [
-      {
-        id: 'a1', name: "Vollkorn-Pasta", image: "🍝", prepTime: 20,
-        calories: 520, protein: 18.2, carbs: 82.4, fat: 16.8, fiber: 14.4,
-        iron: 5.6, calcium: 218, folate: 207, vitaminC: 38, vitaminD: 0, zinc: 3.2,
-        magnesium: 118, potassium: 428, omega3: 1.2, vitaminB12: 0.3,
-        ingredients: ["Vollkornpasta", "Brokkoli", "Karotten", "Nüsse", "Olivenöl"],
-        source: "Eat Smarter", sourceUrl: "https://eatsmarter.de/rezepte/vollkorn-pasta-gemuese"
-      },
-      {
-        id: 'a2', name: "Ofengemüse mit Quinoa", image: "🥕", prepTime: 35,
-        calories: 480, protein: 16.8, carbs: 68.2, fat: 18.6, fiber: 12.8,
-        iron: 6.2, calcium: 185, folate: 176, vitaminC: 78, vitaminD: 0, zinc: 2.8,
-        magnesium: 148, potassium: 572, omega3: 4.2, vitaminB12: 0.2,
-        ingredients: ["Quinoa", "Süßkartoffel", "Zucchini", "Walnüsse", "Leinöl"],
-        source: "Veggie Einhorn", sourceUrl: "https://veggieeinhorn.de/ofengemuese-quinoa/"
-      }
-    ],
-    'Snack': [
-      {
-        id: 's1', name: "Energy Balls", image: "🥜", prepTime: 15,
-        calories: 280, protein: 8.2, carbs: 32.4, fat: 14.8, fiber: 6.2,
-        iron: 2.2, calcium: 118, folate: 38, vitaminC: 5, vitaminD: 0, zinc: 1.8,
-        magnesium: 78, potassium: 228, omega3: 3.2, vitaminB12: 0.2,
-        ingredients: ["Walnüsse", "Datteln", "Chiasamen", "Kakao"],
-        source: "Minimalist Baker", sourceUrl: "https://minimalistbaker.com/peanut-butter-energy-bites/"
-      },
-      {
-        id: 's2', name: "Grüner Smoothie", image: "🥤", prepTime: 5,
-        calories: 240, protein: 7.8, carbs: 38.2, fat: 8.4, fiber: 5.6,
-        iron: 2.8, calcium: 176, folate: 99, vitaminC: 55, vitaminD: 0, zinc: 1.2,
-        magnesium: 78, potassium: 428, omega3: 0.8, vitaminB12: 1.5,
-        ingredients: ["Spinat", "Banane", "Mandelmilch", "Mandelmus"],
-        source: "Green Kitchen", sourceUrl: "https://greenkitchenstories.com/green-smoothie/"
-      },
-      {
-        id: 's3', name: "Avocado-Toast", image: "🥑", prepTime: 8,
-        calories: 320, protein: 10.1, carbs: 28.8, fat: 20.2, fiber: 14.2,
-        iron: 3.2, calcium: 98, folate: 109, vitaminC: 18, vitaminD: 0, zinc: 2.2,
-        magnesium: 68, potassium: 728, omega3: 2.2, vitaminB12: 0.3,
-        ingredients: ["Vollkornbrot", "Avocado", "Leinsamen", "Salz"],
-        source: "Minimalist Vegan", sourceUrl: "https://theminimalistvegan.com/avocado-toast/"
-      }
-    ]
-  };
-
-  const allRecipes = Object.values(recipes).flat();
-
-  // Berechnung der Nährstoffziele
-  const calculateNutritionTargets = (profile) => {
-    let bmr = profile.gender === 'female'
-      ? 655 + (9.6 * profile.weight) + (1.8 * profile.height) - (4.7 * profile.age)
-      : 66 + (13.7 * profile.weight) + (5 * profile.height) - (6.8 * profile.age);
-
-    let calories = bmr * 1.5;
-    let protein = profile.weight * 0.8;
-    let iron = profile.gender === 'female' ? 18 : 8;
-
-    if (profile.isPregnant) {
-      calories += 300;
-      protein += 25;
-      iron = 27;
-    }
-
-    return {
-      calories: Math.round(calories),
-      protein: Math.round(protein),
-      carbs: Math.round(calories * 0.5 / 4),
-      fat: Math.round(calories * 0.3 / 9),
-      fiber: 25,
-      iron, 
-      calcium: 1000, 
-      folate: profile.isPregnant ? 600 : 400,
-      vitaminC: 75, 
-      vitaminD: 15, 
-      zinc: 8, 
-      magnesium: 310,
-      potassium: 3500, 
-      omega3: 1.1, 
-      vitaminB12: 2.4
-    };
-  };
-
-  const [nutritionTargets, setNutritionTargets] = useState(calculateNutritionTargets(userProfile));
-
-  useEffect(() => {
-    generateSmartWeekPlan();
-  }, []);
-
-  useEffect(() => {
-    setNutritionTargets(calculateNutritionTargets(userProfile));
-  }, [userProfile]);
-
-  const getInventoryMatches = (recipe) => {
-    return recipe.ingredients.filter(ingredient =>
-      inventory.some(item =>
-        ingredient.toLowerCase().includes(item.name.toLowerCase()) ||
-        item.name.toLowerCase().includes(ingredient.toLowerCase().split(' ')[0])
-      )
-    );
-  };
-
-  // VERBESSERTE INTELLIGENTE WOCHENPLANUNG
-  const generateSmartWeekPlan = () => {
-    const plan = {};
-    const nutrition = {};
-
-    days.forEach((day, dayIndex) => {
-      plan[dayIndex] = {};
-      let dailyNutrition = {
-        calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0,
-        iron: 0, calcium: 0, folate: 0, vitaminC: 0, vitaminD: 0,
-        zinc: 0, magnesium: 0, potassium: 0, omega3: 0, vitaminB12: 0
-      };
-
-      // Schritt 1: Basis-Rezepte mit Vorrats-Priorität wählen
-      mealTypes.forEach(mealType => {
-        const mealRecipes = recipes[mealType];
-        const prioritizedRecipes = mealRecipes.sort((a, b) => {
-          const aMatches = getInventoryMatches(a).length;
-          const bMatches = getInventoryMatches(b).length;
-          return bMatches - aMatches;
-        });
-
-        const randomRecipe = prioritizedRecipes[Math.floor(Math.random() * Math.min(3, prioritizedRecipes.length))];
-        plan[dayIndex][mealType] = randomRecipe;
-
-        Object.keys(dailyNutrition).forEach(nutrient => {
-          dailyNutrition[nutrient] += randomRecipe[nutrient] || 0;
-        });
-      });
-
-      // Schritt 2: Optimierung für Nährstoff-Ziele
-      const currentCalories = dailyNutrition.calories;
-      const targetCalories = nutritionTargets.calories;
-      const calorieGap = targetCalories - currentCalories;
-
-      // Wenn zu wenig Kalorien: Größere Portionen oder zusätzliche Snacks
-      if (calorieGap > 100) {
-        const currentSnack = plan[dayIndex]['Snack'];
-        const betterSnacks = recipes['Snack'].filter(s => s.calories > currentSnack.calories);
-        if (betterSnacks.length > 0) {
-          const bestSnack = betterSnacks[0];
-          plan[dayIndex]['Snack'] = bestSnack;
-          // Nährstoffe neu berechnen
-          Object.keys(dailyNutrition).forEach(nutrient => {
-            dailyNutrition[nutrient] = dailyNutrition[nutrient] - (currentSnack[nutrient] || 0) + (bestSnack[nutrient] || 0);
-          });
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NutriPlan - Intelligente Ernährungsplanung</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .lucide {
+            width: 1em;
+            height: 1em;
+            stroke: currentColor;
+            stroke-width: 2;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
         }
-      }
-
-      // Schritt 3: Protein-Optimierung
-      if (dailyNutrition.protein < nutritionTargets.protein * 0.9) {
-        const currentMittag = plan[dayIndex]['Mittag'];
-        const proteinRichMeals = recipes['Mittag'].filter(m => m.protein > currentMittag.protein);
-        if (proteinRichMeals.length > 0) {
-          const bestMeal = proteinRichMeals[0];
-          plan[dayIndex]['Mittag'] = bestMeal;
-          Object.keys(dailyNutrition).forEach(nutrient => {
-            dailyNutrition[nutrient] = dailyNutrition[nutrient] - (currentMittag[nutrient] || 0) + (bestMeal[nutrient] || 0);
-          });
-        }
-      }
-
-      nutrition[dayIndex] = dailyNutrition;
-    });
-
-    setWeekPlan(plan);
-    setDailyNutrition(nutrition);
-  };
-
-  const replaceRecipe = (dayIndex, mealType) => {
-    const mealRecipes = recipes[mealType];
-    const currentRecipe = weekPlan[dayIndex][mealType];
-    const filteredRecipes = mealRecipes.filter(recipe => recipe.id !== currentRecipe?.id);
-    const newRecipe = filteredRecipes[Math.floor(Math.random() * filteredRecipes.length)];
-
-    setWeekPlan(prev => ({
-      ...prev,
-      [dayIndex]: { ...prev[dayIndex], [mealType]: newRecipe }
-    }));
-
-    // Nährstoffe für diesen Tag neu berechnen
-    const updatedNutrition = { ...dailyNutrition };
-    let dayNutrition = {
-      calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0,
-      iron: 0, calcium: 0, folate: 0, vitaminC: 0, vitaminD: 0,
-      zinc: 0, magnesium: 0, potassium: 0, omega3: 0, vitaminB12: 0
-    };
-
-    Object.values({ ...weekPlan[dayIndex], [mealType]: newRecipe }).forEach(recipe => {
-      if (recipe) {
-        Object.keys(dayNutrition).forEach(nutrient => {
-          dayNutrition[nutrient] += recipe[nutrient] || 0;
-        });
-      }
-    });
-
-    updatedNutrition[dayIndex] = dayNutrition;
-    setDailyNutrition(updatedNutrition);
-  };
-
-  // Utility Functions
-  const generateShoppingList = () => {
-    const allIngredients = [];
-    Object.values(weekPlan).forEach(day => {
-      Object.values(day).forEach(recipe => {
-        if (recipe?.ingredients) allIngredients.push(...recipe.ingredients);
-      });
-    });
-
-    const uniqueIngredients = [...new Set(allIngredients)].sort();
-    const text = `🛒 PERSONALISIERTE EINKAUFSLISTE\n\n${uniqueIngredients.map(item => `☐ ${item}`).join('\n')}`;
+    </style>
+</head>
+<body>
+    <div id="root"></div>
     
-    const blob = new Blob([text], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'einkaufsliste.txt';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        
+        // Lucide Icons as React components
+        const Calendar = () => <svg className="lucide" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>;
+        const Clock = () => <svg className="lucide" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12,6 12,12 16,14"></polyline></svg>;
+        const ChefHat = () => <svg className="lucide" viewBox="0 0 24 24"><path d="M17 21a1 1 0 0 0 1-1v-5.35c0-.457.316-.844.727-1.041a4 4 0 0 0-2.134-7.589 5 5 0 0 0-9.186 0 4 4 0 0 0-2.134 7.588c.411.198.727.585.727 1.041V20a1 1 0 0 0 1 1Z"></path><path d="M6 17h12"></path></svg>;
+        const Search = () => <svg className="lucide" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.35-4.35"></path></svg>;
+        const RefreshCw = () => <svg className="lucide" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg>;
+        const ShoppingCart = () => <svg className="lucide" viewBox="0 0 24 24"><circle cx="8" cy="21" r="1"></circle><circle cx="19" cy="21" r="1"></circle><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57L21.16 7H7"></path></svg>;
+        const ExternalLink = () => <svg className="lucide" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15,3 21,3 21,9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>;
+        const Info = () => <svg className="lucide" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>;
+        const User = () => <svg className="lucide" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>;
+        const X = () => <svg className="lucide" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
+        const Package = () => <svg className="lucide" viewBox="0 0 24 24"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"></line><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27,6.96 12,12.01 20.73,6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>;
+        const Plus = () => <svg className="lucide" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>;
+        const Minus = () => <svg className="lucide" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"></line></svg>;
 
-  const filteredRecipes = allRecipes.filter(recipe =>
-    recipe.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+        const NutriPlan = () => {
+          const [currentView, setCurrentView] = useState('planner');
+          const [selectedMeal, setSelectedMeal] = useState(null);
+          const [weekPlan, setWeekPlan] = useState({});
+          const [dailyNutrition, setDailyNutrition] = useState({});
+          const [searchTerm, setSearchTerm] = useState('');
+          const [showProfileModal, setShowProfileModal] = useState(false);
+          const [showNutritionInfo, setShowNutritionInfo] = useState(null);
+          const [showInventoryModal, setShowInventoryModal] = useState(false);
+          const [inventory, setInventory] = useState([
+            { id: 1, name: "Tomaten", amount: 3, unit: "Stück", category: "Gemüse", expires: "2024-01-15" },
+            { id: 2, name: "Spinat", amount: 200, unit: "g", category: "Gemüse", expires: "2024-01-12" },
+            { id: 3, name: "Quinoa", amount: 150, unit: "g", category: "Getreide", expires: "2024-06-01" }
+          ]);
+          const [newInventoryItem, setNewInventoryItem] = useState({
+            name: "", amount: "", unit: "g", category: "Gemüse", expires: ""
+          });
+          const [userProfile, setUserProfile] = useState({
+            height: 165, weight: 65, age: 28, gender: 'female', isPregnant: true, pregnancyWeek: 19
+          });
 
-  const getNutritionPercentage = (actual, target) => {
-    return Math.min(Math.round((actual / target) * 100), 100);
-  };
+          const days = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+          const mealTypes = ['Frühstück', 'Mittag', 'Abend', 'Snack'];
 
-  const getNutritionColor = (percentage) => {
-    if (percentage >= 90) return 'bg-green-500';
-    if (percentage >= 70) return 'bg-yellow-500';
-    return 'bg-red-500';
-  };
+          // Kompakte Rezeptdatenbank
+          const recipes = {
+            'Frühstück': [
+              {
+                id: 'f1', name: "Haferflocken-Porridge", image: "🥣", prepTime: 8,
+                calories: 485, protein: 15.2, carbs: 65.3, fat: 18.1, fiber: 12.8,
+                iron: 4.2, calcium: 245, folate: 128, vitaminC: 45, vitaminD: 0, zinc: 3.1,
+                magnesium: 98, potassium: 421, omega3: 2.8, vitaminB12: 0.8,
+                ingredients: ["Haferflocken", "Leinsamen", "Walnüsse", "Beeren", "Hafermilch"],
+                source: "Eat This", sourceUrl: "https://eat-this.org/veganes-porridge-rezept/"
+              },
+              {
+                id: 'f2', name: "Quinoa-Bowl", image: "🍓", prepTime: 15,
+                calories: 520, protein: 18.8, carbs: 58.5, fat: 16.4, fiber: 11.2,
+                iron: 5.8, calcium: 312, folate: 165, vitaminC: 52, vitaminD: 0, zinc: 3.2,
+                magnesium: 138, potassium: 428, omega3: 3.2, vitaminB12: 0.6,
+                ingredients: ["Quinoa", "Chiasamen", "Mandeln", "Himbeeren", "Sojamilch"],
+                source: "Vegane Vibes", sourceUrl: "https://veganevibes.de/quinoa-breakfast-bowl/"
+              },
+              {
+                id: 'f3', name: "Rührei mit Gemüse", image: "🍳", prepTime: 12,
+                calories: 420, protein: 22.6, carbs: 12.4, fat: 28.8, fiber: 4.2,
+                iron: 3.8, calcium: 186, folate: 118, vitaminC: 38, vitaminD: 2.1, zinc: 2.8,
+                magnesium: 78, potassium: 328, omega3: 1.2, vitaminB12: 2.8,
+                ingredients: ["Eier", "Spinat", "Tomaten", "Olivenöl", "Kräuter"],
+                source: "Eigene Hühner", sourceUrl: "#"
+              }
+            ],
+            'Mittag': [
+              {
+                id: 'm1', name: "Quinoa-Linsen Bowl", image: "🥗", prepTime: 25,
+                calories: 620, protein: 28.8, carbs: 75.6, fat: 22.4, fiber: 20.2,
+                iron: 10.2, calcium: 465, folate: 328, vitaminC: 55, vitaminD: 0, zinc: 5.2,
+                magnesium: 218, potassium: 758, omega3: 2.1, vitaminB12: 0.3,
+                ingredients: ["Linsen", "Quinoa", "Spinat", "Avocado", "Tahini"],
+                source: "Bianca Zapatka", sourceUrl: "https://biancazapatka.com/de/quinoa-bowl-tahinidressing/"
+              },
+              {
+                id: 'm2', name: "Kichererbsen-Curry", image: "🍛", prepTime: 30,
+                calories: 580, protein: 24.1, carbs: 78.3, fat: 18.6, fiber: 18.8,
+                iron: 8.5, calcium: 386, folate: 287, vitaminC: 42, vitaminD: 0, zinc: 4.2,
+                magnesium: 188, potassium: 628, omega3: 1.2, vitaminB12: 0.2,
+                ingredients: ["Kichererbsen", "Reis", "Grünkohl", "Kokosmilch", "Gewürze"],
+                source: "Kitchen Stories", sourceUrl: "https://www.kitchenstories.com/de/rezepte/kichererbsencurry"
+              },
+              {
+                id: 'm3', name: "Gemüse-Frittata", image: "🥚", prepTime: 28,
+                calories: 480, protein: 26.4, carbs: 22.6, fat: 32.2, fiber: 7.8,
+                iron: 5.2, calcium: 318, folate: 186, vitaminC: 58, vitaminD: 3.2, zinc: 3.8,
+                magnesium: 109, potassium: 516, omega3: 1.8, vitaminB12: 4.2,
+                ingredients: ["Eier", "Zucchini", "Paprika", "Spinat", "Käse"],
+                source: "Eigene Hühner", sourceUrl: "#"
+              }
+            ],
+            'Abend': [
+              {
+                id: 'a1', name: "Vollkorn-Pasta", image: "🍝", prepTime: 20,
+                calories: 520, protein: 18.2, carbs: 82.4, fat: 16.8, fiber: 14.4,
+                iron: 5.6, calcium: 218, folate: 207, vitaminC: 38, vitaminD: 0, zinc: 3.2,
+                magnesium: 118, potassium: 428, omega3: 1.2, vitaminB12: 0.3,
+                ingredients: ["Vollkornpasta", "Brokkoli", "Karotten", "Nüsse", "Olivenöl"],
+                source: "Eat Smarter", sourceUrl: "https://eatsmarter.de/rezepte/vollkorn-pasta-gemuese"
+              },
+              {
+                id: 'a2', name: "Ofengemüse mit Quinoa", image: "🥕", prepTime: 35,
+                calories: 480, protein: 16.8, carbs: 68.2, fat: 18.6, fiber: 12.8,
+                iron: 6.2, calcium: 185, folate: 176, vitaminC: 78, vitaminD: 0, zinc: 2.8,
+                magnesium: 148, potassium: 572, omega3: 4.2, vitaminB12: 0.2,
+                ingredients: ["Quinoa", "Süßkartoffel", "Zucchini", "Walnüsse", "Leinöl"],
+                source: "Veggie Einhorn", sourceUrl: "https://veggieeinhorn.de/ofengemuese-quinoa/"
+              }
+            ],
+            'Snack': [
+              {
+                id: 's1', name: "Energy Balls", image: "🥜", prepTime: 15,
+                calories: 280, protein: 8.2, carbs: 32.4, fat: 14.8, fiber: 6.2,
+                iron: 2.2, calcium: 118, folate: 38, vitaminC: 5, vitaminD: 0, zinc: 1.8,
+                magnesium: 78, potassium: 228, omega3: 3.2, vitaminB12: 0.2,
+                ingredients: ["Walnüsse", "Datteln", "Chiasamen", "Kakao"],
+                source: "Minimalist Baker", sourceUrl: "https://minimalistbaker.com/peanut-butter-energy-bites/"
+              },
+              {
+                id: 's2', name: "Grüner Smoothie", image: "🥤", prepTime: 5,
+                calories: 240, protein: 7.8, carbs: 38.2, fat: 8.4, fiber: 5.6,
+                iron: 2.8, calcium: 176, folate: 99, vitaminC: 55, vitaminD: 0, zinc: 1.2,
+                magnesium: 78, potassium: 428, omega3: 0.8, vitaminB12: 1.5,
+                ingredients: ["Spinat", "Banane", "Mandelmilch", "Mandelmus"],
+                source: "Green Kitchen", sourceUrl: "https://greenkitchenstories.com/green-smoothie/"
+              },
+              {
+                id: 's3', name: "Avocado-Toast", image: "🥑", prepTime: 8,
+                calories: 320, protein: 10.1, carbs: 28.8, fat: 20.2, fiber: 14.2,
+                iron: 3.2, calcium: 98, folate: 109, vitaminC: 18, vitaminD: 0, zinc: 2.2,
+                magnesium: 68, potassium: 728, omega3: 2.2, vitaminB12: 0.3,
+                ingredients: ["Vollkornbrot", "Avocado", "Leinsamen", "Salz"],
+                source: "Minimalist Vegan", sourceUrl: "https://theminimalistvegan.com/avocado-toast/"
+              }
+            ]
+          };
 
-  // Inventory Functions
-  const addInventoryItem = () => {
-    if (newInventoryItem.name && newInventoryItem.amount) {
-      const newItem = {
-        id: Date.now(),
-        ...newInventoryItem,
-        amount: parseFloat(newInventoryItem.amount)
-      };
-      setInventory([...inventory, newItem]);
-      setNewInventoryItem({ name: "", amount: "", unit: "g", category: "Gemüse", expires: "" });
-    }
-  };
+          const allRecipes = Object.values(recipes).flat();
 
-  const removeInventoryItem = (id) => {
-    setInventory(inventory.filter(item => item.id !== id));
-  };
+          // Berechnung der Nährstoffziele
+          const calculateNutritionTargets = (profile) => {
+            let bmr = profile.gender === 'female'
+              ? 655 + (9.6 * profile.weight) + (1.8 * profile.height) - (4.7 * profile.age)
+              : 66 + (13.7 * profile.weight) + (5 * profile.height) - (6.8 * profile.age);
 
-  const updateInventoryAmount = (id, newAmount) => {
-    setInventory(inventory.map(item =>
-      item.id === id ? { ...item, amount: Math.max(0, newAmount) } : item
-    ));
-  };
+            let calories = bmr * 1.5;
+            let protein = profile.weight * 0.8;
+            let iron = profile.gender === 'female' ? 18 : 8;
 
-  // Profile Modal Component
-  const ProfileModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl max-w-md w-full">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold">Persönliche Daten</h2>
-            <button onClick={() => setShowProfileModal(false)}>
-              <X className="w-6 h-6" />
-            </button>
-          </div>
+            if (profile.isPregnant) {
+              calories += 300;
+              protein += 25;
+              iron = 27;
+            }
 
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Größe (cm)</label>
-                <input
-                  type="number"
-                  value={userProfile.height}
-                  onChange={(e) => setUserProfile({...userProfile, height: parseInt(e.target.value) || 0})}
-                  className="w-full border rounded-lg px-3 py-2"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Gewicht (kg)</label>
-                <input
-                  type="number"
-                  value={userProfile.weight}
-                  onChange={(e) => setUserProfile({...userProfile, weight: parseInt(e.target.value) || 0})}
-                  className="w-full border rounded-lg px-3 py-2"
-                />
-              </div>
-            </div>
+            return {
+              calories: Math.round(calories),
+              protein: Math.round(protein),
+              carbs: Math.round(calories * 0.5 / 4),
+              fat: Math.round(calories * 0.3 / 9),
+              fiber: 25,
+              iron, 
+              calcium: 1000, 
+              folate: profile.isPregnant ? 600 : 400,
+              vitaminC: 75, 
+              vitaminD: 15, 
+              zinc: 8, 
+              magnesium: 310,
+              potassium: 3500, 
+              omega3: 1.1, 
+              vitaminB12: 2.4
+            };
+          };
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Alter</label>
-                <input
-                  type="number"
-                  value={userProfile.age}
-                  onChange={(e) => setUserProfile({...userProfile, age: parseInt(e.target.value) || 0})}
-                  className="w-full border rounded-lg px-3 py-2"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Geschlecht</label>
-                <select
-                  value={userProfile.gender}
-                  onChange={(e) => setUserProfile({...userProfile, gender: e.target.value})}
-                  className="w-full border rounded-lg px-3 py-2"
-                >
-                  <option value="female">Weiblich</option>
-                  <option value="male">Männlich</option>
-                </select>
-              </div>
-            </div>
+          const [nutritionTargets, setNutritionTargets] = useState(calculateNutritionTargets(userProfile));
 
-            <div>
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={userProfile.isPregnant}
-                  onChange={(e) => setUserProfile({...userProfile, isPregnant: e.target.checked})}
-                  className="mr-2"
-                />
-                Schwanger
-              </label>
-            </div>
+          useEffect(() => {
+            generateSmartWeekPlan();
+          }, []);
 
-            {userProfile.isPregnant && (
-              <div>
-                <label className="block text-sm font-medium mb-2">Schwangerschaftswoche</label>
-                <input
-                  type="number"
-                  value={userProfile.pregnancyWeek}
-                  onChange={(e) => setUserProfile({...userProfile, pregnancyWeek: parseInt(e.target.value) || 0})}
-                  className="w-full border rounded-lg px-3 py-2"
-                  min="1"
-                  max="42"
-                />
-              </div>
-            )}
+          useEffect(() => {
+            setNutritionTargets(calculateNutritionTargets(userProfile));
+          }, [userProfile]);
 
-            <button
-              onClick={() => setShowProfileModal(false)}
-              className="w-full bg-green-600 text-white py-2 rounded-lg mt-4 hover:bg-green-700 transition-colors"
-            >
-              Speichern
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+          const getInventoryMatches = (recipe) => {
+            return recipe.ingredients.filter(ingredient =>
+              inventory.some(item =>
+                ingredient.toLowerCase().includes(item.name.toLowerCase()) ||
+                item.name.toLowerCase().includes(ingredient.toLowerCase().split(' ')[0])
+              )
+            );
+          };
 
-  // Inventory Modal Component
-  const InventoryModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold">Vorrats-Tracker</h2>
-            <button onClick={() => setShowInventoryModal(false)}>
-              <X className="w-6 h-6" />
-            </button>
-          </div>
+          // VERBESSERTE INTELLIGENTE WOCHENPLANUNG
+          const generateSmartWeekPlan = () => {
+            const plan = {};
+            const nutrition = {};
 
-          {/* Neuen Artikel hinzufügen */}
-          <div className="bg-gray-50 rounded-lg p-4 mb-6">
-            <h3 className="font-medium mb-3">Neuen Artikel hinzufügen</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <input
-                type="text"
-                placeholder="Lebensmittel"
-                value={newInventoryItem.name}
-                onChange={(e) => setNewInventoryItem({...newInventoryItem, name: e.target.value})}
-                className="border rounded-lg px-3 py-2"
-              />
-              <div className="flex gap-2">
-                <input
-                  type="number"
-                  placeholder="Menge"
-                  value={newInventoryItem.amount}
-                  onChange={(e) => setNewInventoryItem({...newInventoryItem, amount: e.target.value})}
-                  className="border rounded-lg px-3 py-2 flex-1"
-                />
-                <select
-                  value={newInventoryItem.unit}
-                  onChange={(e) => setNewInventoryItem({...newInventoryItem, unit: e.target.value})}
-                  className="border rounded-lg px-3 py-2"
-                >
-                  <option value="g">g</option>
-                  <option value="kg">kg</option>
-                  <option value="Stück">Stück</option>
-                  <option value="ml">ml</option>
-                  <option value="l">l</option>
-                </select>
-              </div>
-              <select
-                value={newInventoryItem.category}
-                onChange={(e) => setNewInventoryItem({...newInventoryItem, category: e.target.value})}
-                className="border rounded-lg px-3 py-2"
-              >
-                <option value="Gemüse">Gemüse</option>
-                <option value="Obst">Obst</option>
-                <option value="Getreide">Getreide</option>
-                <option value="Hülsenfrüchte">Hülsenfrüchte</option>
-                <option value="Nüsse">Nüsse</option>
-                <option value="Milchprodukte">Milchprodukte</option>
-                <option value="Sonstiges">Sonstiges</option>
-              </select>
-              <input
-                type="date"
-                value={newInventoryItem.expires}
-                onChange={(e) => setNewInventoryItem({...newInventoryItem, expires: e.target.value})}
-                className="border rounded-lg px-3 py-2"
-                title="Mindesthaltbarkeitsdatum"
-              />
-            </div>
-            <button
-              onClick={addInventoryItem}
-              className="mt-3 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              Hinzufügen
-            </button>
-          </div>
+            days.forEach((day, dayIndex) => {
+              plan[dayIndex] = {};
+              let dailyNutrition = {
+                calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0,
+                iron: 0, calcium: 0, folate: 0, vitaminC: 0, vitaminD: 0,
+                zinc: 0, magnesium: 0, potassium: 0, omega3: 0, vitaminB12: 0
+              };
 
-          {/* Vorhandene Artikel */}
-          <div>
-            <h3 className="font-medium mb-3">Deine Vorräte ({inventory.length} Artikel)</h3>
-            <div className="space-y-3">
-              {inventory.map(item => {
-                const isExpiringSoon = item.expires && new Date(item.expires) <= new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
-                return (
-                  <div key={item.id} className={`border rounded-lg p-3 ${isExpiringSoon ? 'border-orange-300 bg-orange-50' : 'border-gray-200'}`}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3">
-                          <span className="font-medium">{item.name}</span>
-                          <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                            {item.category}
-                          </span>
-                          {isExpiringSoon && (
-                            <span className="text-xs text-orange-600 bg-orange-100 px-2 py-1 rounded">
-                              Läuft bald ab
-                            </span>
-                          )}
+              // Schritt 1: Basis-Rezepte mit Vorrats-Priorität wählen
+              mealTypes.forEach(mealType => {
+                const mealRecipes = recipes[mealType];
+                const prioritizedRecipes = mealRecipes.sort((a, b) => {
+                  const aMatches = getInventoryMatches(a).length;
+                  const bMatches = getInventoryMatches(b).length;
+                  return bMatches - aMatches;
+                });
+
+                const randomRecipe = prioritizedRecipes[Math.floor(Math.random() * Math.min(3, prioritizedRecipes.length))];
+                plan[dayIndex][mealType] = randomRecipe;
+
+                Object.keys(dailyNutrition).forEach(nutrient => {
+                  dailyNutrition[nutrient] += randomRecipe[nutrient] || 0;
+                });
+              });
+
+              // Schritt 2: Optimierung für Nährstoff-Ziele
+              const currentCalories = dailyNutrition.calories;
+              const targetCalories = nutritionTargets.calories;
+              const calorieGap = targetCalories - currentCalories;
+
+              // Wenn zu wenig Kalorien: Größere Portionen oder zusätzliche Snacks
+              if (calorieGap > 100) {
+                const currentSnack = plan[dayIndex]['Snack'];
+                const betterSnacks = recipes['Snack'].filter(s => s.calories > currentSnack.calories);
+                if (betterSnacks.length > 0) {
+                  const bestSnack = betterSnacks[0];
+                  plan[dayIndex]['Snack'] = bestSnack;
+                  // Nährstoffe neu berechnen
+                  Object.keys(dailyNutrition).forEach(nutrient => {
+                    dailyNutrition[nutrient] = dailyNutrition[nutrient] - (currentSnack[nutrient] || 0) + (bestSnack[nutrient] || 0);
+                  });
+                }
+              }
+
+              // Schritt 3: Protein-Optimierung
+              if (dailyNutrition.protein < nutritionTargets.protein * 0.9) {
+                const currentMittag = plan[dayIndex]['Mittag'];
+                const proteinRichMeals = recipes['Mittag'].filter(m => m.protein > currentMittag.protein);
+                if (proteinRichMeals.length > 0) {
+                  const bestMeal = proteinRichMeals[0];
+                  plan[dayIndex]['Mittag'] = bestMeal;
+                  Object.keys(dailyNutrition).forEach(nutrient => {
+                    dailyNutrition[nutrient] = dailyNutrition[nutrient] - (currentMittag[nutrient] || 0) + (bestMeal[nutrient] || 0);
+                  });
+                }
+              }
+
+              nutrition[dayIndex] = dailyNutrition;
+            });
+
+            setWeekPlan(plan);
+            setDailyNutrition(nutrition);
+          };
+
+          const replaceRecipe = (dayIndex, mealType) => {
+            const mealRecipes = recipes[mealType];
+            const currentRecipe = weekPlan[dayIndex][mealType];
+            const filteredRecipes = mealRecipes.filter(recipe => recipe.id !== currentRecipe?.id);
+            const newRecipe = filteredRecipes[Math.floor(Math.random() * filteredRecipes.length)];
+
+            setWeekPlan(prev => ({
+              ...prev,
+              [dayIndex]: { ...prev[dayIndex], [mealType]: newRecipe }
+            }));
+
+            // Nährstoffe für diesen Tag neu berechnen
+            const updatedNutrition = { ...dailyNutrition };
+            let dayNutrition = {
+              calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0,
+              iron: 0, calcium: 0, folate: 0, vitaminC: 0, vitaminD: 0,
+              zinc: 0, magnesium: 0, potassium: 0, omega3: 0, vitaminB12: 0
+            };
+
+            Object.values({ ...weekPlan[dayIndex], [mealType]: newRecipe }).forEach(recipe => {
+              if (recipe) {
+                Object.keys(dayNutrition).forEach(nutrient => {
+                  dayNutrition[nutrient] += recipe[nutrient] || 0;
+                });
+              }
+            });
+
+            updatedNutrition[dayIndex] = dayNutrition;
+            setDailyNutrition(updatedNutrition);
+          };
+
+          // Utility Functions
+          const generateShoppingList = () => {
+            const allIngredients = [];
+            Object.values(weekPlan).forEach(day => {
+              Object.values(day).forEach(recipe => {
+                if (recipe?.ingredients) allIngredients.push(...recipe.ingredients);
+              });
+            });
+
+            const uniqueIngredients = [...new Set(allIngredients)].sort();
+            const text = `🛒 PERSONALISIERTE EINKAUFSLISTE\n\n${uniqueIngredients.map(item => `☐ ${item}`).join('\n')}`;
+            
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'einkaufsliste.txt';
+            a.click();
+            URL.revokeObjectURL(url);
+          };
+
+          const filteredRecipes = allRecipes.filter(recipe =>
+            recipe.name.toLowerCase().includes(searchTerm.toLowerCase())
+          );
+
+          const getNutritionPercentage = (actual, target) => {
+            return Math.min(Math.round((actual / target) * 100), 100);
+          };
+
+          const getNutritionColor = (percentage) => {
+            if (percentage >= 90) return 'bg-green-500';
+            if (percentage >= 70) return 'bg-yellow-500';
+            return 'bg-red-500';
+          };
+
+          // Inventory Functions
+          const addInventoryItem = () => {
+            if (newInventoryItem.name && newInventoryItem.amount) {
+              const newItem = {
+                id: Date.now(),
+                ...newInventoryItem,
+                amount: parseFloat(newInventoryItem.amount)
+              };
+              setInventory([...inventory, newItem]);
+              setNewInventoryItem({ name: "", amount: "", unit: "g", category: "Gemüse", expires: "" });
+            }
+          };
+
+          const removeInventoryItem = (id) => {
+            setInventory(inventory.filter(item => item.id !== id));
+          };
+
+          const updateInventoryAmount = (id, newAmount) => {
+            setInventory(inventory.map(item =>
+              item.id === id ? { ...item, amount: Math.max(0, newAmount) } : item
+            ));
+          };
+
+          // Kürzere Komponenten-Definitionen für bessere Performance
+          const ProfileModal = () => (
+            showProfileModal && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-xl max-w-md w-full">
+                  <div className="p-6">
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="text-xl font-bold">Persönliche Daten</h2>
+                      <button onClick={() => setShowProfileModal(false)}>
+                        <X />
+                      </button>
+                    </div>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Größe (cm)</label>
+                          <input
+                            type="number"
+                            value={userProfile.height}
+                            onChange={(e) => setUserProfile({...userProfile, height: parseInt(e.target.value) || 0})}
+                            className="w-full border rounded-lg px-3 py-2"
+                          />
                         </div>
-                        {item.expires && (
-                          <div className="text-xs text-gray-500 mt-1">
-                            MHD: {new Date(item.expires).toLocaleDateString('de-DE')}
-                          </div>
-                        )}
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Gewicht (kg)</label>
+                          <input
+                            type="number"
+                            value={userProfile.weight}
+                            onChange={(e) => setUserProfile({...userProfile, weight: parseInt(e.target.value) || 0})}
+                            className="w-full border rounded-lg px-3 py-2"
+                          />
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => updateInventoryAmount(item.id, item.amount - (item.unit === 'Stück' ? 1 : 10))}
-                          className="text-gray-500 hover:text-gray-700 p-1"
-                        >
-                          <Minus className="w-4 h-4" />
-                        </button>
-                        <span className="font-medium min-w-[60px] text-center">
-                          {item.amount} {item.unit}
+                      <button
+                        onClick={() => setShowProfileModal(false)}
+                        className="w-full bg-green-600 text-white py-2 rounded-lg mt-4 hover:bg-green-700 transition-colors"
+                      >
+                        Speichern
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          );
+
+          return (
+            <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
+              <header className="bg-white shadow-sm border-b border-gray-200">
+                <div className="max-w-7xl mx-auto px-4 py-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <ChefHat className="w-8 h-8 text-green-600" />
+                      <h1 className="text-2xl font-bold text-gray-800">NutriPlan</h1>
+                      {userProfile.isPregnant && (
+                        <span className="text-sm text-gray-500 bg-pink-100 px-2 py-1 rounded-full">
+                          {userProfile.pregnancyWeek}. SSW
                         </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setShowInventoryModal(true)}
+                        className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors relative"
+                        title="Vorrats-Tracker"
+                      >
+                        <Package className="w-5 h-5" />
+                        {inventory.length > 0 && (
+                          <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                            {inventory.length}
+                          </span>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => setShowProfileModal(true)}
+                        className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                        title="Persönliche Daten"
+                      >
+                        <User className="w-5 h-5" />
+                      </button>
+                      <nav className="flex gap-2">
                         <button
-                          onClick={() => updateInventoryAmount(item.id, item.amount + (item.unit === 'Stück' ? 1 : 10))}
-                          className="text-gray-500 hover:text-gray-700 p-1"
+                          onClick={() => setCurrentView('planner')}
+                          className={`px-4 py-2 rounded-lg transition-colors ${currentView === 'planner' ? 'bg-green-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
                         >
-                          <Plus className="w-4 h-4" />
+                          <Calendar className="w-4 h-4 inline mr-2" />Wochenplan
                         </button>
                         <button
-                          onClick={() => removeInventoryItem(item.id)}
-                          className="text-red-500 hover:text-red-700 ml-2"
+                          onClick={() => setCurrentView('recipes')}
+                          className={`px-4 py-2 rounded-lg transition-colors ${currentView === 'recipes' ? 'bg-green-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
                         >
-                          <X className="w-4 h-4" />
+                          <Search className="w-4 h-4 inline mr-2" />Rezepte
                         </button>
-                      </div>
+                      </nav>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-            {inventory.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>Noch keine Vorräte erfasst</p>
-                <p className="text-sm">Füge Lebensmittel hinzu, die verbraucht werden sollen</p>
-              </div>
-            )}
-          </div>
+                </div>
+              </header>
 
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-            <div className="flex items-start gap-3">
-              <Info className="w-5 h-5 text-blue-600 mt-0.5" />
-              <div className="text-sm text-blue-800">
-                <p className="font-medium mb-1">So funktioniert's:</p>
-                <p>Rezepte mit deinen Vorräten werden beim Wochenplan automatisch bevorzugt. Artikel, die bald ablaufen, werden zuerst verwendet.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  // Nutrition Info Modal Component
-  const NutritionInfoModal = ({ data, type, onClose }) => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold">
-              {type === 'recipe' ? `Nährstoffe: ${data.name}` : 'Tages-Nährstoffe'}
-            </h2>
-            <button onClick={onClose}>
-              <X className="w-6 h-6" />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <h3 className="font-bold mb-3">Makronährstoffe</h3>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span>Kalorien:</span>
-                  <span>{Math.round(data.calories)} kcal</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Protein:</span>
-                  <span>{data.protein?.toFixed(1)} g</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Kohlenhydrate:</span>
-                  <span>{data.carbs?.toFixed(1)} g</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Fett:</span>
-                  <span>{data.fat?.toFixed(1)} g</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Ballaststoffe:</span>
-                  <span>{data.fiber?.toFixed(1)} g</span>
-                </div>
-              </div>
-            </div>
-            <div>
-              <h3 className="font-bold mb-3">Mikronährstoffe</h3>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span>Eisen:</span>
-                  <span>{data.iron?.toFixed(1)} mg</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Calcium:</span>
-                  <span>{data.calcium?.toFixed(0)} mg</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Folsäure:</span>
-                  <span>{data.folate?.toFixed(0)} μg</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Vitamin C:</span>
-                  <span>{data.vitaminC?.toFixed(1)} mg</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Vitamin D:</span>
-                  <span>{data.vitaminD?.toFixed(1)} μg</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Vitamin B12:</span>
-                  <span>{data.vitaminB12?.toFixed(1)} μg</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Zink:</span>
-                  <span>{data.zinc?.toFixed(1)} mg</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Omega-3:</span>
-                  <span>{data.omega3?.toFixed(1)} g</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {type === 'day' && (
-            <div className="mt-6">
-              <h3 className="font-bold mb-3">Zielwerte erreicht</h3>
-              <div className="grid grid-cols-3 gap-2">
-                {Object.entries(nutritionTargets).map(([nutrient, target]) => {
-                  const actual = data[nutrient] || 0;
-                  const percentage = getNutritionPercentage(actual, target);
-                  return (
-                    <div key={nutrient} className="text-center">
-                      <div className="w-full h-2 bg-gray-200 rounded-full mb-1">
-                        <div
-                          className={`h-2 rounded-full ${getNutritionColor(percentage)}`}
-                          style={{ width: `${Math.min(percentage, 100)}%` }}
-                        ></div>
+              <main className="max-w-7xl mx-auto px-4 py-8">
+                {currentView === 'planner' && (
+                  <div>
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+                      <div>
+                        <h2 className="text-3xl font-bold text-gray-800 mb-2">Optimierter Wochenplan</h2>
+                        <p className="text-gray-600">
+                          Ziel: {Math.round(nutritionTargets.calories)} kcal, {nutritionTargets.protein}g Protein täglich
+                        </p>
                       </div>
-                      <div className="text-xs">{nutrient}: {percentage}%</div>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={generateSmartWeekPlan}
+                          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+                        >
+                          <RefreshCw className="w-4 h-4" />Optimiert generieren
+                        </button>
+                        <button
+                          onClick={generateShoppingList}
+                          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+                        >
+                          <ShoppingCart className="w-4 h-4" />Einkaufsliste
+                        </button>
+                      </div>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
 
-  // Rezept-Seite Content
-  const RecipesView = () => (
-    <div>
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-gray-800 mb-4">Erweiterte Rezept-Bibliothek</h2>
-        <div className="relative mb-6">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-          <input
-            type="text"
-            placeholder="Rezepte suchen…"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {filteredRecipes.map(recipe => (
-          <div key={recipe.id} className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all overflow-hidden">
-            <div className="h-32 bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center text-4xl relative">
-              {recipe.image}
-              <button
-                onClick={() => setShowNutritionInfo({data: recipe, type: 'recipe'})}
-                className="absolute top-2 right-2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-1.5 transition-colors"
-                title="Nährstoff-Info"
-              >
-                <Info className="w-3 h-3 text-gray-700" />
-              </button>
-            </div>
-            <div className="p-4">
-              <h3 className="font-bold text-gray-800 mb-2">{recipe.name}</h3>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs text-gray-500">{recipe.calories} kcal</span>
-                <span className="text-xs text-gray-500">{recipe.protein}g Protein</span>
-              </div>
-              {getInventoryMatches(recipe).length > 0 && (
-                <div className="mb-2">
-                  <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded flex items-center gap-1">
-                    📦 {getInventoryMatches(recipe).length} Vorrat{getInventoryMatches(recipe).length !== 1 ? 'e' : ''}
-                  </span>
-                </div>
-              )}
-              <div className="flex items-center gap-1 text-xs text-gray-600 mb-3">
-                <span>Quelle:</span>
-                <a href={recipe.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700 flex items-center gap-1">
-                  {recipe.source} <ExternalLink className="w-3 h-3" />
-                </a>
-              </div>
-              <button
-                onClick={() => setSelectedMeal(recipe)}
-                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-lg transition-colors text-sm font-medium"
-              >
-                Details ansehen
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-
-  // Recipe Detail Modal
-  const RecipeDetailModal = () => (
-    selectedMeal && (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-          <div className="p-6">
-            <div className="flex justify-between items-start mb-4">
-              <h2 className="text-2xl font-bold text-gray-800">{selectedMeal.name}</h2>
-              <button onClick={() => setSelectedMeal(null)} className="text-gray-500 hover:text-gray-700">
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="text-center mb-4">
-              <div className="text-6xl mb-2">{selectedMeal.image}</div>
-              <div className="flex justify-center gap-4 text-sm text-gray-600">
-                <span><Clock className="w-4 h-4 inline mr-1" />{selectedMeal.prepTime} Min</span>
-                <span>{selectedMeal.calories} kcal</span>
-              </div>
-            </div>
-
-            <div className="mb-4">
-              <h3 className="font-bold mb-2">Zutaten:</h3>
-              <ul className="space-y-1">
-                {selectedMeal.ingredients.map((ingredient, index) => (
-                  <li key={index} className="flex items-center">
-                    <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                    {ingredient}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <span className="font-medium">Original-Rezept:</span>
-                <a href={selectedMeal.sourceUrl} target="_blank" rel="noopener noreferrer"
-                  className="text-blue-500 hover:text-blue-700 flex items-center gap-1">
-                  {selectedMeal.source} <ExternalLink className="w-4 h-4" />
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  );
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <ChefHat className="w-8 h-8 text-green-600" />
-              <h1 className="text-2xl font-bold text-gray-800">NutriPlan</h1>
-              {userProfile.isPregnant && (
-                <span className="text-sm text-gray-500 bg-pink-100 px-2 py-1 rounded-full">
-                  {userProfile.pregnancyWeek}. SSW
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowInventoryModal(true)}
-                className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors relative"
-                title="Vorrats-Tracker"
-              >
-                <Package className="w-5 h-5" />
-                {inventory.length > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                    {inventory.length}
-                  </span>
+                    <div className="grid grid-cols-1 lg:grid-cols-7 gap-6">
+                      {days.map((day, dayIndex) => (
+                        <div key={dayIndex} className="bg-white rounded-xl shadow-lg overflow-hidden">
+                          <div className="bg-gradient-to-r from-green-500 to-blue-500 text-white p-4">
+                            <h3 className="font-bold text-center">{day}</h3>
+                            {dailyNutrition[dayIndex] && (
+                              <div className="text-center text-sm mt-1">
+                                <div className="opacity-90">
+                                  {Math.round(dailyNutrition[dayIndex].calories)} / {nutritionTargets.calories} kcal
+                                </div>
+                                <div className="text-xs opacity-75">
+                                  {Math.round((dailyNutrition[dayIndex].calories / nutritionTargets.calories) * 100)}% erreicht
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          <div className="p-4 space-y-4">
+                            {mealTypes.map(mealType => (
+                              <div key={mealType} className="border-l-4 border-green-200 pl-3">
+                                <h4 className="font-medium text-gray-700 mb-2 text-sm">{mealType}</h4>
+                                {weekPlan[dayIndex]?.[mealType] ? (
+                                  <div className="bg-gray-50 rounded-lg p-3">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <span className="font-medium text-sm">{weekPlan[dayIndex][mealType].name}</span>
+                                      <button
+                                        onClick={() => replaceRecipe(dayIndex, mealType)}
+                                        className="text-red-500 hover:text-red-700 transition-colors"
+                                        title="Kein Bock - anderes Rezept"
+                                      >
+                                        <RefreshCw className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                    {getInventoryMatches(weekPlan[dayIndex][mealType]).length > 0 && (
+                                      <div className="mb-2">
+                                        <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
+                                          📦 {getInventoryMatches(weekPlan[dayIndex][mealType]).length} Vorrat
+                                        </span>
+                                      </div>
+                                    )}
+                                    <div className="flex items-center justify-between text-xs text-gray-500">
+                                      <span><Clock className="w-3 h-3 inline mr-1" />{weekPlan[dayIndex][mealType].prepTime}min</span>
+                                      <span>{weekPlan[dayIndex][mealType].calories} kcal</span>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="bg-gray-100 rounded-lg p-3 text-center text-gray-500 text-sm">
+                                    Lädt...
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 )}
-              </button>
-              <button
-                onClick={() => setShowProfileModal(true)}
-                className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                title="Persönliche Daten"
-              >
-                <User className="w-5 h-5" />
-              </button>
-              <nav className="flex gap-2">
-                <button
-                  onClick={() => setCurrentView('planner')}
-                  className={`px-4 py-2 rounded-lg transition-colors ${currentView === 'planner' ? 'bg-green-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
-                >
-                  <Calendar className="w-4 h-4 inline mr-2" />Wochenplan
-                </button>
-                <button
-                  onClick={() => setCurrentView('recipes')}
-                  className={`px-4 py-2 rounded-lg transition-colors ${currentView === 'recipes' ? 'bg-green-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
-                >
-                  <Search className="w-4 h-4 inline mr-2" />Rezepte
-                </button>
-              </nav>
-            </div>
-          </div>
-        </div>
-      </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        {currentView === 'planner' && (
-          <div>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-              <div>
-                <h2 className="text-3xl font-bold text-gray-800 mb-2">Optimierter Wochenplan</h2>
-                <p className="text-gray-600">
-                  Ziel: {Math.round(nutritionTargets.calories)} kcal, {nutritionTargets.protein}g Protein täglich
-                </p>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={generateSmartWeekPlan}
-                  className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
-                >
-                  <RefreshCw className="w-4 h-4" />Optimiert generieren
-                </button>
-                <button
-                  onClick={generateShoppingList}
-                  className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
-                >
-                  <ShoppingCart className="w-4 h-4" />Einkaufsliste
-                </button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-7 gap-6">
-              {days.map((day, dayIndex) => (
-                <div key={dayIndex} className="bg-white rounded-xl shadow-lg overflow-hidden">
-                  <div className="bg-gradient-to-r from-green-500 to-blue-500 text-white p-4">
-                    <h3 className="font-bold text-center">{day}</h3>
-                    {dailyNutrition[dayIndex] && (
-                      <div className="text-center text-sm mt-1">
-                        <div className="opacity-90">
-                          {Math.round(dailyNutrition[dayIndex].calories)} / {nutritionTargets.calories} kcal
-                        </div>
-                        <div className="text-xs opacity-75">
-                          {Math.round((dailyNutrition[dayIndex].calories / nutritionTargets.calories) * 100)}% erreicht
-                        </div>
+                {currentView === 'recipes' && (
+                  <div>
+                    <div className="mb-8">
+                      <h2 className="text-3xl font-bold text-gray-800 mb-4">Erweiterte Rezept-Bibliothek</h2>
+                      <div className="relative mb-6">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                        <input
+                          type="text"
+                          placeholder="Rezepte suchen…"
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
+                        />
                       </div>
-                    )}
-                  </div>
-                  <div className="p-4 space-y-4">
-                    {mealTypes.map(mealType => (
-                      <div key={mealType} className="border-l-4 border-green-200 pl-3">
-                        <h4 className="font-medium text-gray-700 mb-2 text-sm">{mealType}</h4>
-                        {weekPlan[dayIndex]?.[mealType] ? (
-                          <div className="bg-gray-50 rounded-lg p-3">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="font-medium text-sm">{weekPlan[dayIndex][mealType].name}</span>
-                              <button
-                                onClick={() => replaceRecipe(dayIndex, mealType)}
-                                className="text-red-500 hover:text-red-700 transition-colors"
-                                title="Kein Bock - anderes Rezept"
-                              >
-                                <RefreshCw className="w-4 h-4" />
-                              </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                      {filteredRecipes.map(recipe => (
+                        <div key={recipe.id} className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all overflow-hidden">
+                          <div className="h-32 bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center text-4xl relative">
+                            {recipe.image}
+                            <button
+                              onClick={() => setShowNutritionInfo({data: recipe, type: 'recipe'})}
+                              className="absolute top-2 right-2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-1.5 transition-colors"
+                              title="Nährstoff-Info"
+                            >
+                              <Info className="w-3 h-3 text-gray-700" />
+                            </button>
+                          </div>
+                          <div className="p-4">
+                            <h3 className="font-bold text-gray-800 mb-2">{recipe.name}</h3>
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-xs text-gray-500">{recipe.calories} kcal</span>
+                              <span className="text-xs text-gray-500">{recipe.protein}g Protein</span>
                             </div>
-                            {getInventoryMatches(weekPlan[dayIndex][mealType]).length > 0 && (
+                            {getInventoryMatches(recipe).length > 0 && (
                               <div className="mb-2">
-                                <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
-                                  📦 {getInventoryMatches(weekPlan[dayIndex][mealType]).length} Vorrat
+                                <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded flex items-center gap-1">
+                                  📦 {getInventoryMatches(recipe).length} Vorrat{getInventoryMatches(recipe).length !== 1 ? 'e' : ''}
                                 </span>
                               </div>
                             )}
-                            <div className="flex items-center justify-between text-xs text-gray-500">
-                              <span><Clock className="w-3 h-3 inline mr-1" />{weekPlan[dayIndex][mealType].prepTime}min</span>
-                              <span>{weekPlan[dayIndex][mealType].calories} kcal</span>
+                            <div className="flex items-center gap-1 text-xs text-gray-600 mb-3">
+                              <span>Quelle:</span>
+                              <a href={recipe.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700 flex items-center gap-1">
+                                {recipe.source} <ExternalLink className="w-3 h-3" />
+                              </a>
                             </div>
+                            <button
+                              onClick={() => setSelectedMeal(recipe)}
+                              className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-lg transition-colors text-sm font-medium"
+                            >
+                              Details ansehen
+                            </button>
                           </div>
-                        ) : (
-                          <div className="bg-gray-100 rounded-lg p-3 text-center text-gray-500 text-sm">
-                            Lädt...
-                          </div>
-                        )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </main>
+
+              <ProfileModal />
+              
+              {selectedMeal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                  <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+                    <div className="p-6">
+                      <div className="flex justify-between items-start mb-4">
+                        <h2 className="text-2xl font-bold text-gray-800">{selectedMeal.name}</h2>
+                        <button onClick={() => setSelectedMeal(null)} className="text-gray-500 hover:text-gray-700">
+                          <X className="w-6 h-6" />
+                        </button>
                       </div>
-                    ))}
+                      <div className="text-center mb-4">
+                        <div className="text-6xl mb-2">{selectedMeal.image}</div>
+                        <div className="flex justify-center gap-4 text-sm text-gray-600">
+                          <span><Clock className="w-4 h-4 inline mr-1" />{selectedMeal.prepTime} Min</span>
+                          <span>{selectedMeal.calories} kcal</span>
+                        </div>
+                      </div>
+                      <div className="mb-4">
+                        <h3 className="font-bold mb-2">Zutaten:</h3>
+                        <ul className="space-y-1">
+                          {selectedMeal.ingredients.map((ingredient, index) => (
+                            <li key={index} className="flex items-center">
+                              <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                              {ingredient}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div className="p-4 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <span className="font-medium">Original-Rezept:</span>
+                          <a href={selectedMeal.sourceUrl} target="_blank" rel="noopener noreferrer"
+                            className="text-blue-500 hover:text-blue-700 flex items-center gap-1">
+                            {selectedMeal.source} <ExternalLink className="w-4 h-4" />
+                          </a>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              ))}
+              )}
             </div>
-          </div>
-        )}
+          );
+        };
 
-        {currentView === 'recipes' && <RecipesView />}
-      </main>
-
-      {/* Modals */}
-      {showProfileModal && <ProfileModal />}
-      {showInventoryModal && <InventoryModal />}
-      <RecipeDetailModal />
-      {showNutritionInfo && (
-        <NutritionInfoModal
-          data={showNutritionInfo.data}
-          type={showNutritionInfo.type}
-          onClose={() => setShowNutritionInfo(null)}
-        />
-      )}
-    </div>
-  );
-};
-
-export default NutriPlan;
+        ReactDOM.render(<NutriPlan />, document.getElementById('root'));
+    </script>
+</body>
+</html>
